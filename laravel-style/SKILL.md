@@ -65,6 +65,7 @@ Second principle: **these rules win — bring the code to them.** This guide is 
 - Scope user-supplied IDs through the authenticated user's relationships.
 - Order class members by artifact type.
 - Put `render()` last in a Livewire component.
+- Tautological tests are considered harmful.
 
 ## Do and Don't
 
@@ -104,6 +105,7 @@ Don't:
 - Don't use fully qualified classnames in docblocks.
 - Don't edit a migration that has already shipped — add a new one instead.
 - Don't hand-fix anything Pint already handles.
+- Don't create tautological tests.
 
 ## Examples
 ```php
