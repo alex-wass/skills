@@ -1,11 +1,22 @@
 # Laravel Style Guidelines (Reference)
 
-A portable, self-contained style guide for Laravel projects. This document is the single source of truth — it does not depend on any other style guide or skill. Where a rule here differs from a widely-assumed default, **this guide wins**; those points are listed under [Intentional Departures](#intentional-departures).
+A portable style guide for Laravel projects. Where a rule here differs from a widely-assumed default, **this guide wins**; those points are listed under [Intentional Departures](#intentional-departures).
 
-Anything this guide does not mention is governed by PSR-1, PSR-2, and PSR-12. The one exception is trait imports, where Laravel's own convention is followed over PSR-12 — see [Intentional Departures](#intentional-departures).
+## Precedence
+
+When sources disagree, the first one that covers the topic wins:
+
+1. **`testing-best-practices`** skill — for anything about tests, when available.
+2. **This guide** (`laravel-style`).
+3. **`laravel-best-practices`** skill — the fallback for anything this guide doesn't cover, when available.
+4. Laravel's documented conventions, then PSR-1, PSR-2 and PSR-12. The one exception is trait imports, where Laravel's own convention is followed over PSR-12 — see [Intentional Departures](#intentional-departures).
+5. What sibling files in the codebase already do, rather than inventing a second pattern.
+
+A skill that isn't installed is skipped.
 
 ## Table of Contents
 - [Laravel Style Guidelines (Reference)](#laravel-style-guidelines-reference)
+  - [Precedence](#precedence)
   - [Table of Contents](#table-of-contents)
   - [Core Principle](#core-principle)
   - [PHP Standards](#php-standards)
@@ -51,6 +62,12 @@ Anything this guide does not mention is governed by PSR-1, PSR-2, and PSR-12. Th
     - [Form object member order (`Livewire\Form`)](#form-object-member-order-livewireform)
     - [Notes](#notes)
   - [Testing](#testing)
+    - [General](#general)
+    - [Suite setup (Pest)](#suite-setup-pest)
+    - [Layout and naming](#layout-and-naming)
+    - [Filament (v4+)](#filament-v4)
+    - [Assertions and fakes](#assertions-and-fakes)
+    - [Test value](#test-value)
   - [Intentional Departures](#intentional-departures)
   - [Quick Reference](#quick-reference)
     - [Naming](#naming)
@@ -62,7 +79,7 @@ Anything this guide does not mention is governed by PSR-1, PSR-2, and PSR-12. Th
 
 **Follow Laravel conventions first. If Laravel has a documented way to do something, use it. Only deviate when you have a clear justification.**
 
-Supporting principle — **these rules win; bring the code to them.** This guide is prescriptive. It describes how code should look, not how any particular codebase currently looks, so where existing code disagrees, align the code. Where this guide is silent, follow what sibling files already do rather than inventing a second pattern.
+Supporting principle — **these rules win; bring the code to them.** This guide is prescriptive. It describes how code should look, not how any particular codebase currently looks, so where existing code disagrees, align the code. Where this guide is silent, work down the [Precedence](#precedence) list.
 
 ---
 
@@ -774,11 +791,53 @@ class Show extends Component
 
 ## Testing
 
-- Descriptive test names stating the behaviour: `it('cannot link another users record')`
-- Arrange–act–assert
-- Use factories and their states; prefer `assertModelExists()` over raw DB assertions
-- Fake external boundaries (`Http::fake()`, `Http::preventStrayRequests()`, `Queue::fake()`) globally where possible, after factory setup
-- Every behaviour change ships with a test
+> **Precedence:** the `testing-best-practices` skill always wins on testing. If a rule here conflicts with it, follow `testing-best-practices`. This section only adds Laravel-specific conventions on top of it.
+
+### General
+- Arrange–act–assert.
+- Use factories and their states to build data.
+- Test the slice, not the change. A behaviour change is covered by the test of the whole flow it belongs to (the request, page or command a user actually runs). Update that existing test's arrange and assertions to cover the new behaviour. Don't add a separate micro-test for each change.
+- Add a new test only when a flow has no test yet, or the change is a real new path through it (a new outcome, error or permission branch).
+
+### Suite setup (Pest)
+- Bind every suite in one place in `tests/Pest.php`: `pest()->extend(TestCase::class)->use(LazilyRefreshDatabase::class)->beforeEach(...)->in('Feature', 'Unit')`. Never call `pest()->extend()` in an individual test file.
+- The global `beforeEach` holds the safety nets every test needs: `Http::preventStrayRequests()`, `Sleep::fake(syncWithCarbon: true)`, `Exceptions::fake()` and `$this->withoutVite()`.
+- On Laravel versions that ship them, `TestCase` uses `WithCachedConfig` and `WithCachedRoutes`.
+- A helper goes in `Pest.php` only once two or more test files use it. Until then it stays in the file that uses it. Name helpers so two of them can't be mistaken for each other.
+
+### Layout and naming
+- Test paths mirror `app/`: one test file per class, named after it (`app/Actions/PublishPost.php` → `tests/Feature/Actions/PublishPostTest.php`). Don't split one class's tests across several files.
+- Tests that span many classes (a whole admin panel, seeders) get a folder named for the area, e.g. `tests/Feature/Panel/`, `tests/Feature/Seeders/`.
+- Use `it()` for behaviour and `test()` for declarative facts (policies, enums). Keep to one style per file.
+- Names describe the behaviour and lead with the result: `it('cannot link another users record')`. API error tests include the status code: `it('returns 403 when the user does not own the post')`. Never name a factory state or a method.
+
+### Filament (v4+)
+Applies only when the project uses Filament.
+- Use Filament's documented testing assertions. Don't reach into `getTable()` internals. Build a check by hand only when no assertion exists, and give the helper a docblock saying why.
+- Check for deprecations in `vendor/filament/*/.stubs.php`. The runtime traits don't carry the `@deprecated` tags, so the IDE won't warn you.
+- Table actions: `TestAction::make(...)->table($record)`, and `->table()->bulk()` for bulk actions. Never use `assertTableAction*` or `callTableAction`.
+- Action forms: `fillForm` (not `setActionData`), `assertSchemaStateSet` (not `assertFormSet`), and `assertHasFormErrors` / `assertHasNoFormErrors` for validation.
+- Refer to actions by class, not by string name: custom actions through their `#[ActionName]` attribute, built-ins as `ViewAction::class`.
+- Don't test table or menu configuration: column lists, which columns are toggleable or sortable, character limits, action order. Do test what the table computes from a record (counts, colours, tooltips, placeholders, formatted state) and what interacting with it does (filter, sort, call an action).
+- Assert that an action is absent with `assertActionDoesNotExist`. `assertTableActionsExistInOrder([])` passes for any table, so it proves nothing.
+- For columns hidden by default, use `assertCanNotRenderTableColumn`. `isHidden()` doesn't report toggled-off columns.
+- Always pass a direction to `sortTable()`. Without one it toggles, which moves away from the table's default sort.
+
+### Assertions and fakes
+- Assert database state with Laravel's assertions (`assertDatabaseHas`, `assertModelExists`, …), imported as Pest functions (`use function Pest\Laravel\assertDatabaseHas;`), never through `$this->`.
+- Use `expect()` for values. A count with conditions also uses `expect(Post::where(...)->count())`, since `assertDatabaseCount()` only counts a whole table.
+- Test a query scope by comparing the ids it returns to a known list: `expect(Post::published()->pluck('id')->all())->toEqualCanonicalizing([$a->id, $b->id])`. Don't use `->exists()`, which passes if any single row matches.
+- Name the classes in every fake: `Queue::fake([SendInvoice::class])`. Use a bare `Queue::fake()` only together with `assertNothingPushed()`.
+- If a fake is there only to stop a background side effect (not to be asserted on), wrap it in a named helper such as `withoutSearchIndexing()`, so it doesn't look like a forgotten assertion.
+- Don't fake or assert against something the code never does.
+
+### Test value
+- Test the full permission matrix at the lowest layer only: policy tests run as a dataset over every role (`Role::cases()`), plus an explicit denial for a user from another tenant or owner. Controller, page and API tests keep one allowed and one denied case to prove the policy is wired in.
+- Don't test factory defaults or the exact contents of a seeder. Test a seeder by its contract: it fills the tables, running it twice is safe, and (in multi-tenant apps) its records don't cross tenants.
+- Every assertion must be able to fail. After writing a test for a bug, break the code, watch the test fail, then restore it.
+- When two nullable fields depend on each other, test every combination that can actually occur.
+- Validation tests assert the message text, not just that the field has an error. A custom message keyed with a wildcard (`'tags.*'`) isn't applied when the array's own keys contain dots. In that case, use a closure rule that calls `$fail()` with the message.
+- For jobs using `WithoutOverlapping` middleware, assert the lock key, not just that the middleware is present.
 
 ---
 

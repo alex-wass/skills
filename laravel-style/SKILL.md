@@ -1,6 +1,6 @@
 ---
 name: laravel-style
-description: Apply these Laravel coding conventions for any task that creates, edits, reviews, refactors, or formats Laravel or Blade code. Covers PSR standards, class structure and member ordering, docblock and comment policy, control flow, ternary and closure formatting, imports, naming, routes, config, validation, authorization, Blade, Livewire, migrations, and testing conventions. Activate for controllers, models, migrations, jobs, services, enums, policies, observers, form objects, and Livewire components. Sits on top of Laravel Pint, which handles mechanical formatting.
+description: Apply these Laravel coding conventions for any task that creates, edits, reviews, refactors, or formats Laravel or Blade code. Covers PSR standards, class structure and member ordering, docblock and comment policy, control flow, ternary and closure formatting, imports, naming, routes, config, validation, authorization, Blade, Livewire, migrations, and testing conventions. Activate for controllers, models, migrations, jobs, services, enums, policies, observers, form objects, and Livewire components. Sits on top of Laravel Pint, which handles mechanical formatting. Companion to laravel-best-practices (fallback for anything not covered); testing-best-practices takes priority on tests.
 license: MIT
 metadata:
   author: alex-wass
@@ -10,9 +10,15 @@ metadata:
 # Laravel Style
 
 ## Overview
-Applies a custom style guide for Laravel projects to keep code style consistent and Laravel-native.
+Applies a custom style guide for Laravel projects to keep code style consistent and Laravel-native. It is a companion to the `laravel-best-practices` skill.
 
-Anything not covered here is governed by Laravel's own convention, then PSR-1, PSR-2, and PSR-12.
+## Precedence
+When sources disagree, the first one that covers the topic wins. Skip any skill that isn't installed.
+1. `testing-best-practices` — for anything about tests.
+2. `laravel-style` (this skill).
+3. `laravel-best-practices` — the fallback for anything this skill doesn't cover.
+4. Laravel's documented conventions, then PSR-1, PSR-2 and PSR-12.
+5. What sibling files already do.
 
 ## When to Activate
 - Activate for any Laravel coding work, even if style is not mentioned.
@@ -28,13 +34,15 @@ Anything not covered here is governed by Laravel's own convention, then PSR-1, P
 ## Workflow
 1. Identify the artifact (model, controller, job, service, enum, policy, Livewire component).
 2. Read `references/laravel-style-guidelines.md` and focus on the relevant sections — especially **Class Member Ordering**, which differs per artifact type.
-3. Apply the core principle first, then the PHP standards, then the artifact-specific rules.
-4. Run `vendor/bin/pint` and confirm it passes.
+3. When writing tests, load `testing-best-practices` if available and let it override the Testing section.
+4. For anything the guide doesn't cover, load `laravel-best-practices` if available and follow it.
+5. Apply the core principle first, then the PHP standards, then the artifact-specific rules.
+6. Run `vendor/bin/pint` and confirm it passes.
 
 ## Core Principle
 **Follow Laravel conventions first. If Laravel has a documented way to do something, use it. Only deviate when you have a clear justification.**
 
-Second principle: **these rules win — bring the code to them.** This guide is prescriptive, not a description of what a codebase currently does; where existing code disagrees, align the code. Where this guide is silent, follow what sibling files already do rather than inventing a second pattern.
+Second principle: **these rules win — bring the code to them.** This guide is prescriptive, not a description of what a codebase currently does; where existing code disagrees, align the code. Where this guide is silent, work down the Precedence list.
 
 ## Core Rules (Summary)
 - Follow Laravel conventions first.
@@ -66,6 +74,7 @@ Second principle: **these rules win — bring the code to them.** This guide is 
 - Order class members by artifact type.
 - Put `render()` last in a Livewire component.
 - Tautological tests are considered harmful.
+- Cover a change by updating the existing flow test, not by adding a micro-test.
 
 ## Do and Don't
 
