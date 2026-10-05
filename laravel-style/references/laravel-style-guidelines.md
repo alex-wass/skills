@@ -836,7 +836,7 @@ Applies only when the project uses Filament.
 - Don't test factory defaults or the exact contents of a seeder. Test a seeder by its contract: it fills the tables, running it twice is safe, and (in multi-tenant apps) its records don't cross tenants.
 - Every assertion must be able to fail. After writing a test for a bug, break the code, watch the test fail, then restore it.
 - When two nullable fields depend on each other, test every combination that can actually occur.
-- Validation tests assert the message text, not just that the field has an error. A custom message keyed with a wildcard (`'tags.*'`) isn't applied when the array's own keys contain dots. In that case, use a closure rule that calls `$fail()` with the message.
+- Validation tests assert the rule that failed by name (`['field' => 'required']`), not the message text, which is framework copy and breaks when it changes. Assert the field alone only when the rule has no name, such as a closure rule.
 - For jobs using `WithoutOverlapping` middleware, assert the lock key, not just that the middleware is present.
 
 ---
